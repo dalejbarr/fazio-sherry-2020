@@ -604,7 +604,7 @@ body {
 <p>Dale Barr September 10, 2020</p>
 <p>Pre-processing of data files from the article:</p>
 <p>Fazio, L. K. &amp; Sherry, C. L. (2020). <a href="https://doi.org/10.1177%2F0956797620939534">The Effect of Repetition on Truth Judgments Across Development</a>, <em>Psychological Science</em>.</p>
-<p>To run this script, you need to first download the authors’ CSV file at <a href="https://osf.io/cngzu/">https://osf.io/cngzu/</a> and store it as <code>IT_kid_FINAL.csv</code> in the same directory as this script.</p>
+<p>To run this script (<code>README.Rmd</code>), you need to first download the authors’ CSV file at <a href="https://osf.io/cngzu/">https://osf.io/cngzu/</a> and store it as <code>IT_kid_FINAL.csv</code> in the same directory as this script.</p>
 <p>This script creates four CSV files:</p>
 <ul>
 <li><code>subjects.csv</code> : information about individual subjects</li>
@@ -612,7 +612,7 @@ body {
 <li><code>confidence_ratings.csv</code> : all the raw confidence ratings</li>
 <li><code>list_cond.csv</code> : Maps item_id and subject list onto experimental condition</li>
 </ul>
-<p>To run it, type <code>rmarkdown::render(&quot;convert.Rmd&quot;)</code> at the R command line.</p>
+<p>To run it, type <code>rmarkdown::render(&quot;README.Rmd&quot;, output = html_document())</code> at the R command line.</p>
 <h1 id="import-and-transform-the-data">Import and transform the data</h1>
 <h2 id="import">Import</h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">library</span>(<span class="st">&quot;tidyverse&quot;</span>)</a></code></pre></div>

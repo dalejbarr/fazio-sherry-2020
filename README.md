@@ -10,9 +10,9 @@ Judgments Across
 Development](https://doi.org/10.1177%2F0956797620939534), *Psychological
 Science*.
 
-To run this script, you need to first download the authors’ CSV file at
-<https://osf.io/cngzu/> and store it as `IT_kid_FINAL.csv` in the same
-directory as this script.
+To run this script (`README.Rmd`), you need to first download the
+authors’ CSV file at <https://osf.io/cngzu/> and store it as
+`IT_kid_FINAL.csv` in the same directory as this script.
 
 This script creates four CSV files:
 
@@ -22,8 +22,8 @@ This script creates four CSV files:
   - `list_cond.csv` : Maps item\_id and subject list onto experimental
     condition
 
-To run it, type `rmarkdown::render("convert.Rmd")` at the R command
-line.
+To run it, type `rmarkdown::render("README.Rmd", output =
+html_document())` at the R command line.
 
 # Import and transform the data
 
