@@ -1,0 +1,270 @@
+---
+title: "Importing/Converting data from Fazio & Sherry (2020)"
+author: Dale Barr
+date: "September 10, 2020"
+output: github_document
+---
+
+Pre-processing of data files from the article:
+
+Fazio, L. K. & Sherry, C. L. (2020). [The Effect of Repetition on Truth Judgments Across Development](https://doi.org/10.1177%2F0956797620939534), *Psychological Science*.
+
+To run this script, you need to first download the authors' CSV file at <https://osf.io/cngzu/> and store it as `IT_kid_FINAL.csv` in the same directory as this script.
+
+This script creates four CSV files:
+
+- `subjects.csv` : information about individual subjects
+- `truth_judgments.csv` : all the raw truth judgments
+- `confidence_ratings.csv` : all the raw confidence ratings
+- `list_cond.csv` : Maps item_id and subject list onto experimental condition
+
+To run it, type `rmarkdown::render("convert.Rmd")` at the R command line.
+
+# Import and transform the data
+
+## Import
+
+```{r setup}
+library("tidyverse")
+
+import <- function() {
+  read_csv(
+    "IT_kid_FINAL.csv",
+    col_types = cols(
+      gender = col_character(),
+      age = col_double(),
+      n_c_e = col_double(),
+      n_c_m = col_double(),
+      n_c_h = col_double(),
+      n_i_e = col_double(),
+      n_i_m = col_double(),
+      n_i_h = col_double(),
+      r_c_e = col_double(),
+      r_c_m = col_double(),
+      r_c_h = col_double(),
+      r_i_e = col_double(),
+      r_i_m = col_double(),
+      r_i_h = col_double(),
+      not_tested_c = col_double(),
+      tested_c = col_double(),
+      not_tested_i = col_double(),
+      tested_i = col_double(),
+      not_tested = col_double(),
+      tested = col_double(),
+      s_n_c_e = col_double(),
+      s_n_c_m = col_double(),
+      s_n_c_h = col_double(),
+      s_n_i_e = col_double(),
+      s_n_i_m = col_double(),
+      s_n_i_h = col_double(),
+      s_r_c_e = col_double(),
+      s_r_c_m = col_double(),
+      s_r_c_h = col_double(),
+      s_r_i_e = col_double(),
+      s_r_i_m = col_double(),
+      s_r_i_h = col_double(),
+      s_not_tested_c = col_double(),
+      s_tested_c = col_double(),
+      s_not_tested_i = col_double(),
+      s_tested_i = col_double(),
+      s_not_tested = col_double(),
+      s_tested = col_double(),
+      easy_new = col_double(),
+      easy_repeated = col_double(),
+      med_new = col_double(),
+      med_repeated = col_double(),
+      hard_new = col_double(),
+      hard_repeated = col_double(),
+      .default = col_integer()))
+}
+
+dat <- import()
+
+head(dat)
+```
+## Transform and identify experimental conditions
+
+### truth judgments: wide to long
+
+```{r transform-truth}
+# - n/r: n = new, r = repeated
+# - c/i: ground truth c = correct, i = incorrect???
+# - e/m/h: e = easy, m = medium, h = hard
+
+raw_long_dat <- dat %>%
+  select(subject, T1:T48) %>%
+  pivot_longer(cols = c(-subject),
+               names_to = "statement", values_to = "response") %>%
+  separate(statement, c("junk", "item_id"), 1L, convert = TRUE) %>%
+  select(-junk) %>%
+  mutate(set = as.integer(floor((item_id - 1L) / 4L)) + 1L)
+
+write_csv(raw_long_dat %>% select(-set), "truth_judgments.csv")
+```
+
+### confidence judgments: wide to long
+
+```{r transform-conf}
+conf_long <- dat %>%
+  select(subject, S1:S48) %>%
+  pivot_longer(cols = c(-subject),
+               names_to = "statement", values_to = "response") %>%
+  separate(statement, c("junk", "item_id"), 1L, convert = TRUE) %>%
+  select(-junk)
+
+write_csv(conf_long, "confidence_ratings.csv")
+```
+
+### subject information
+
+```{r subjects}
+dat %>%
+  select(subject, cond, gender, agegroup, age) %>%
+  write_csv("subjects.csv")
+```
+
+### derive list information
+
+```{r derive-list}
+item_inf <- distinct(raw_long_dat, item_id, set)
+
+stat_long <- dat %>%
+  select(subject, n_c_e:r_i_h) %>%
+  pivot_longer(c(-subject), names_to = "stat")
+
+lookup <- stat_long %>%
+  distinct(stat) %>%
+  mutate(stat_id = row_number()) %>%
+  select(stat_id, stat)
+
+lookup2 <- lookup %>%
+  mutate(stat_id = c(7:12, 1:6))
+
+lookup3 <- lookup %>%
+  mutate(stat_id = c(4:12, 1:3))
+
+lookup4 <- lookup %>%
+  mutate(stat_id = c(10:12, 1:9))
+
+list_info <- bind_rows(lookup %>%
+                       mutate(cond = 1L),
+                       lookup2 %>%
+                       mutate(cond = 3L),
+                       lookup3 %>%
+                       mutate(cond = 2L),
+                       lookup4 %>%
+                       mutate(cond = 4L)) %>%
+  rename(set = stat_id) %>%
+  select(cond, everything()) %>%
+  separate("stat", c("rep", "gt", "diff"), "_", remove = FALSE) %>%
+  mutate(
+    ground_truth = if_else(gt == "c", "true", "false") %>%
+      fct_relevel("true"),
+    repetition = if_else(rep == "r", "repeated", "new") %>%
+      fct_relevel("new"),
+    knowledge_level = case_when(diff == "e" ~ "preschool",
+                                diff == "m" ~ "elementary",
+                                TRUE ~ "middle") %>%
+      fct_relevel(c("preschool", "elementary", "middle"))) %>%
+  select(-gt, -rep, -diff)
+
+inner_join(list_info, item_inf, "set") %>%
+  select(cond, item_id, everything()) %>%
+  arrange(cond, item_id) %>%
+  write_csv("list_cond.csv")
+```
+
+# Validate 
+
+Check that stats from the new, transformed data matches the Fazio & Sherry stats.
+
+Calculate statistics from the raw data and verify that they match
+these columns in the original data for every subject:
+
+- `n_c_e`
+- `n_c_m`
+- `n_c_h`
+- `n_i_e`
+- `n_i_m`
+- `n_i_h`
+- `r_c_e`
+- `r_c_m`
+- `r_c_h`
+- `r_i_e`
+- `r_i_m`
+- `r_i_h`
+
+If they match, this document will compile. If not, it will throw an error.
+
+## Starter code
+
+If you want to perform any analyses using the raw data, include this R code at the top of your script.
+
+```{r starter}
+library("tidyverse")
+
+## the following lines load in all of the data
+subj <- read_csv("subjects.csv", col_types = "iicid")
+truth_raw <- read_csv("truth_judgments.csv", col_types = "iii")
+conf_raw <- read_csv("confidence_ratings.csv", col_types = "iii")
+list_cond <- read_csv("list_cond.csv", col_types = "iiicfff") %>%
+  mutate(ground_truth = fct_relevel(ground_truth, "true"),
+         repetition = fct_relevel(repetition, "new"),
+         knowledge_level = fct_relevel(knowledge_level, "preschool", "elementary"))
+
+## truth ratings combined table
+truth <- truth_raw %>%
+  inner_join(subj, "subject") %>%
+  inner_join(list_cond, c("cond", "item_id"))
+
+## confidence ratings combined table
+conf <- conf_raw %>%
+  inner_join(subj, "subject") %>%
+  inner_join(list_cond, c("cond", "item_id"))
+
+```
+## validate by matching the statistics
+
+```{r validate}
+dat <- import()
+
+## reconstruct the data
+reconstructed <- truth_raw %>%
+  inner_join(subj %>% select(subject, cond), "subject") %>%
+  inner_join(list_cond, c("cond", "item_id")) %>%
+  group_by(subject, stat) %>%
+  summarize(m = mean(response), .groups = "drop")
+
+## make original in long format
+orig <- dat %>%
+  select(subject, n_c_e:r_i_h) %>%
+  pivot_longer(c(-subject), names_to = "stat", values_to = "m")
+
+## are they the same?
+did_match <- setequal(orig, reconstructed)
+
+## if not, then this statement will fail during compilation
+stopifnot(did_match)
+```
+**Did the transformed data match the original data? `r if (did_match) "YES" else "NO"`**
+
+## validate by reproducing the graph
+
+```{r graph-validate, fig.width = 7, fig.height = 3.5}
+truth %>%
+  group_by(subject, agegroup, repetition) %>%
+  summarize(m = mean(response), .groups = "drop") %>%
+  ggplot(aes(repetition, m)) +
+  geom_point(alpha = .2) +
+  geom_line(aes(group = subject), alpha = .2) +
+  facet_wrap(~ agegroup, nrow = 1L) +
+  theme_bw() +
+  coord_cartesian(ylim = c(0, 1))
+```
+
+
+# R Session Information
+
+```{r sess-inf}
+sessionInfo()
+```
